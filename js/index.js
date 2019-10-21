@@ -63,6 +63,7 @@ function joinGame(gameAddress){
 }
 
 printChoice();
+
 var choice=getInput("1)Start New Game\n2)Join New Game\n");
 console.log(choice)
 if(choice=="1"){

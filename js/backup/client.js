@@ -1,7 +1,7 @@
 var socket = require('socket.io-client')('http://localhost:8000',{ transports: ['websocket'] });
 // var socket = io({transports: ['websocket']});
 let client="";
-let gameAddress="";
+let gameAddress=""
 // let game={
 //     player1Address:"",
 //     player2Address:"",
@@ -16,15 +16,7 @@ let gameAddress="";
 //     player1Ready:false,
 //     player2Ready:false
 //     }
-var game={};
-function isPlayer1Turn(data){
-    if(data.player1Address==game.playerTurn){
-        return true;
-    }
-    else{
-        return false;
-    }
-}
+
 function getInput(message){
     var input="";
     const readlineSync = require('readline-sync');
@@ -69,31 +61,23 @@ function printBoard(board) {
     console.log("choice is ",choice);
     if(choice=="1"){
         console.log("your account is ",client);
-        let tokens=getInput("\n Number of tokens you would want to use for the game\n");
+        let tokens=getInput("\n Number of tokens you would want to buy\n");
         let rounds=getInput("\nNumber of Rounds\n");
         let roundsBet={}
         count=0
-        while(true){
-        for(var i=1;i<=parseInt(rounds);i++){    
+        for(var i=1;i<=parseInt(rounds);i++){
+            
             let bet=getInput("\nEnter Bet amount for Round "+i+"\t")
             roundsBet["round"+i]=parseInt(bet);
             count+=parseInt(bet)
+            
         }
-        if(count<=parseInt(tokens)){
-            break;
-        }
-        else{
-            count=0;
-            console.log("\nYou dont have sufficient balance\n");
-        }
-    }
-        
         socket.emit('startNewGame',{"account":client,"rounds":rounds,"tokens":tokens,"roundsBet":roundsBet,"total":count});
     }
     else if(choice=="2"){
-        socket.emit("totalBet");
-        // console.log(game);
-      
+      let gameAddress=getInput("\n Enter Game Address you want to join\n");
+      let tokens=getInput("\n Enter the amount of tokens\n");
+      socket.emit('joinGame',{"gameAddress":gameAddress,"account":client,"tokens":tokens});
     }
     else if(choice=="3"){
         if(!client){
@@ -132,25 +116,6 @@ function printBoard(board) {
   socket.on('connect', () => {
       askChoice();
   })
-
-  socket.on('bets',function(data){
-      console.log("Bets is triggered ",data);
-      game=data;
-      let gameAddress=getInput("\n Enter Game Address you want to join\n");
-      let tokens="";
-      console.log(game);
-      while(true){
-      tokens=getInput("\n Enter the amount of tokens\n");
-      console.log(game);
-      if(parseInt(tokens)<game.totalBet){
-          console.log("\n The bet tokens are not sufficient\n");
-      }
-      else{
-          break;
-      }
-      }
-      socket.emit('joinGame',{"gameAddress":gameAddress,"account":client,"tokens":tokens});
-  })
   
   socket.on('accountCreated',function(data){
       console.log("Your new Account is ",data.account);
@@ -173,12 +138,11 @@ function printBoard(board) {
 })
 
 socket.on('gameCreated',function(data){
-    game=data;
-    console.log("A new game is created ",game);
+    console.log("A new game is created ",data);
 })
 
 socket.on('gameRoomFull',function(data){
-    // console.clear()
+    console.clear()
     console.log("Game room is full\n",data);
     let readiness="";
     while(true){
@@ -192,28 +156,20 @@ socket.on('gameRoomFull',function(data){
         socket.emit("sendMsg",{"message":"player two not joined yet","client":client})
     }
     else{
-        console.log("\nPlease enter a valid choice \n");
+        console.log("\nPlease enter a valid choice \n")
     }
 }
 })
 socket.on("message",function(data){
-    console.log("\n\nMessage Received from ",data);
-    console.log("\n",data);
+    console.log("\n\nMessage Received from ",data.client);
+    console.log("\n",data.message);
 })
-
 socket.on("gameReady",function(data){
     console.clear();
     console.log("===============Game is Rady================\n");
     printGameDetails(data.game);
     printBoard(data.gameboard);
-    game=data.game;
-    console.log("Mark your position using any of the below position numbers\n")
-    console.log('\n' +
-        ' ' + 1 + ' | ' + 2 + ' | ' + 3 + '\n' +
-        ' ---------\n' +
-        ' ' + 4 + ' | ' + 5 + ' | ' + 6 + '\n' +
-        ' ---------\n' +
-        ' ' + 7 + ' | ' + 8 + ' | ' + 9 + '\n');
+    
 })
 socket.on('error',function(data){
     console.log("Error occured ",data);

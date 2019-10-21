@@ -6,7 +6,6 @@ const Web3= require('web3');
 const port=8000
 let playerTurn="";
 
-
 let game={
 player1Address:"",
 player2Address:"",
@@ -22,8 +21,7 @@ player1Ready:false,
 player2Ready:false,
 move:0,
 roundsBet:{},
-totalBet:0,
-playerTurn:""
+totalBet:0
 }
 
 let gameBoard;
@@ -79,18 +77,16 @@ io.on('connection', function(socket) {
                 game.player1Address=data.account;
                 game.totalRounds=data.rounds;
                 game.roundsBet=data.roundsBet;
-                game.player1BalanceToken=parseInt(data.tokens);
-                game.totalBet=parseInt(data.total);
-                // if(game.player1BalanceToken<parseInt(data.total)){
-                //     console.log("\n Insufficient balance\n");
-                //     socket.emit("insufficientBalance",{"message":"you do not have enough tokens","balance":game.player1BalanceToken})
-                // }
-                // else{
+                game.player1BalanceToken+=parseInt(data.tokens);
+                if(game.player1BalanceToken<parseInt(data.total)){
+                    console.log("\n Insufficient balance\n");
+                    socket.emit("insufficientBalance",{"message":"you do not have enough tokens","balance":game.player1BalanceToken})
+                }
+                else{
                     console.log("If failed, u have sufficient balance",game.player1BalanceToken,data.total);
                     socket.join(data.account);
-                    // socket.emit("gameCreated",game);
                     socket.emit("gameCreated",game);
-            // }
+                }
                 
             }
         });
@@ -101,7 +97,7 @@ io.on('connection', function(socket) {
 
      socket.on('joinGame', function (data) {
         console.log('Join a game event',data);
-        // socket.emit("gameCreated",game);
+        
         let web3=createConnection();
         web3.eth.defaultAccount = data.account;
         var Contract = web3.eth.contract(contractSource.abi)
@@ -117,17 +113,17 @@ io.on('connection', function(socket) {
                             if(result.blockNumber != null) {
                                 console.log('Game ready');
                                 game.player2Address=data.account;
-                                game.player2BalanceToken=parseInt(data.tokens);
-                                // if(game.player2BalanceToken<parseInt(data.total)){
-                                //     console.log("\n Insufficient balance\n")
-                                //     socket.emit("insufficientBalance",{"message":"you do not have enough tokens","balance":game.player2BalanceToken})
-                                // }
-                                // else{
+                                game.player2BalanceToken+=parseInt(data.tokens);
+                                if(game.player2BalanceToken<parseInt(data.total)){
+                                    console.log("\n Insufficient balance\n")
+                                    socket.emit("insufficientBalance",{"message":"you do not have enough tokens","balance":game.player2BalanceToken})
+                                }
+                                else{
                                     console.log("If failed, u have sufficient balance",game.player2BalanceToken,data.total);
                                     socket.join(game.player1Address);
                                     io.sockets.in(game.player1Address).emit('gameRoomFull',game);
                                     clearInterval(interval)
-                                // }
+                                }
                                 
                             }
                         })
@@ -148,10 +144,7 @@ io.on('connection', function(socket) {
         console.log("error occured try again",err);
         socket.emit("error",{"error":"error creating new account"});
     });
-    socket.on('totalBet',function(){
-        console.log("totalbet is triggered");
-        socket.emit("bets",game);
-    })
+
     socket.on("playerReady",function(data){
         if(game.player1Address==data.player){
             game.player1Ready=true;
@@ -161,7 +154,7 @@ io.on('connection', function(socket) {
         }
         if(game.player2Ready && game.player1Ready){
             initializeGameBoard();
-            game.playerTurn=game.player1Address;
+            playerTurn=game.player1Address;
             io.sockets.in(game.player1Address).emit('gameReady',{"game":game,"gameboard":gameBoard});
         }
     })
