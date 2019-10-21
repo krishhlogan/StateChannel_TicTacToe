@@ -214,12 +214,17 @@ socket.on("gameReady",function(data){
         ' ' + 4 + ' | ' + 5 + ' | ' + 6 + '\n' +
         ' ---------\n' +
         ' ' + 7 + ' | ' + 8 + ' | ' + 9 + '\n');
+    socket.emit("gameInitialised");
 })
 socket.on('error',function(data){
     console.log("Error occured ",data);
     askChoice();
 })
 
+socket.on('makeAMove',function(data){
+    console.log("Please Make a Move ");
+    
+})
 socket.on('insufficientBalance',function(data){
     console.log("\n",data.message);
 })

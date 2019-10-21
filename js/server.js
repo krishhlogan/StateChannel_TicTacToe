@@ -169,6 +169,12 @@ io.on('connection', function(socket) {
     socket.on('sendMsg',function(data){
         io.sockets.in(game.player1Address).emit('message',data);
     })
+
+    socket.on('gameInitialised',function(){
+        console.log("Game is successfully initalised...");
+        io.sockets.in(game.player1Address).emit('makeAMove',game);
+    })
+    
      socket.on('loadFromPrivateKey', function (data) {
         let conn=createConnection();
         console.log(data)
