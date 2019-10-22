@@ -17,8 +17,9 @@ let gameAddress="";
 //     player2Ready:false
 //     }
 var game={};
-function isPlayer1Turn(data){
-    if(data.player1Address==game.playerTurn){
+function isYourTurn(data){
+    console.log(client,data.playerTurn,client==data.playerTurn);
+    if(client==data.playerTurn){
         return true;
     }
     else{
@@ -44,9 +45,11 @@ function printGameDetails(game){
     console.log("\nPlayer 2 Total Wins: ",game.player2TotalWins);
     if(client==game.player1Address){
         console.log("\n Your token balance: ",game.player1BalanceToken);
+        console.log("==========You are Player 1=======");
     }
     else if(client==game.player2Address){
         console.log("\n Your token balance: ",game.player2BalanceToken);
+        console.log("==========You are Player 2=======");
     }
 }
 
@@ -107,7 +110,8 @@ function printBoard(board) {
     else if(choice=="4"){
         if(!client){
         let privateKey=getInput("\nEnter your privatekey\n");
-        let passphrase=getInput("\nEnter your password\n");
+        // let passphrase=getInput("\nEnter your password\n");
+        let passphrase="password";
         if(passphrase && privateKey){
         socket.emit("loadFromPrivateKey",{"privateKey":privateKey,"passphrase":passphrase});
         }
@@ -222,7 +226,32 @@ socket.on('error',function(data){
 })
 
 socket.on('makeAMove',function(data){
-    console.log("Please Make a Move ");
+    var move="";
+    game=data.game;
+    console.log(isYourTurn(data.turn),data.turn);
+    console.log(data.message);
+    if(isYourTurn(data.turn)){
+        console.log("your turn ");
+    printBoard(data.board);
+        while(true){
+        move=getInput("\nEnter the position you want to mark\n")
+        if(parseInt(move) in [1,2,3,4,5,6,7,8,9,10]){
+            if(data.board[move]==" "){
+                socket.emit("moveMade",{"move":move,"client":client});
+                break;
+            }
+            else{
+                console.log("\n That position is already taken\nChoose a new One\n");
+            }
+        }
+        else{
+            console.log("\nPlease enter a valid position to mark \n")
+        }
+    }
+    }
+    else{
+        console.log("Not your turn ");
+    }
     
 })
 socket.on('insufficientBalance',function(data){

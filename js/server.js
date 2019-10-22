@@ -45,6 +45,15 @@ let initializeGameBoard=function(){
     };
 }
 
+function isPlayer1(data){
+    if(data==game.player1Address){
+    return true;
+    }
+    else{
+        return false;
+    }
+}
+
 io.on('connection', function(socket) {
     console.log('A user connected');
     
@@ -125,6 +134,7 @@ io.on('connection', function(socket) {
                                 // else{
                                     console.log("If failed, u have sufficient balance",game.player2BalanceToken,data.total);
                                     socket.join(game.player1Address);
+                                    game.playerTurn=game.player1Address;
                                     io.sockets.in(game.player1Address).emit('gameRoomFull',game);
                                     clearInterval(interval)
                                 // }
@@ -161,8 +171,9 @@ io.on('connection', function(socket) {
         }
         if(game.player2Ready && game.player1Ready){
             initializeGameBoard();
+            console.log("Both players are ready");
             game.playerTurn=game.player1Address;
-            io.sockets.in(game.player1Address).emit('gameReady',{"game":game,"gameboard":gameBoard});
+            io.sockets.in(game.player1Address).emit('gameReady',{"game":game,"gameboard":gameBoard,"turn":game.playerTurn});
         }
     })
 
@@ -171,8 +182,40 @@ io.on('connection', function(socket) {
     })
 
     socket.on('gameInitialised',function(){
-        console.log("Game is successfully initalised...");
-        io.sockets.in(game.player1Address).emit('makeAMove',game);
+        console.log("Game is successfully initalised...",game);
+        io.sockets.in(game.player1Address).emit('makeAMove',{"game":game,"board":gameBoard,"message":"\n\nFirst time\n\n"});
+        
+    })
+
+    socket.on('moveMade',function(data){
+        console.log("\nMove Made by\n",game.playerTurn,data);
+        if(gameBoard[data.move]==" "){
+            if(isPlayer1(data.client)){
+                gameBoard[data.move]="X";
+                console.log("was Player 1 ");
+                game.playerTurn=game.player2Address;
+            }
+            else{
+                gameBoard[data.move]="O"
+                console.log("was Player 2 ");
+            game.playerTurn=game.player1Address;
+            }
+            io.sockets.in(game.player1Address).emit('makeAMove',{"game":game,"board":gameBoard,"message":"\n\nData changed in game \n\n","turn":game.playerTurn});
+        }
+        else{
+            io.sockets.in(game.player1Address).emit('makeAMove',{"game":game,"board":gameBoard,"message":"\n\nNot changed\n\n","turn":game.playerTurn});
+        }
+        
+        // if(isPlayer1(game.playerTurn)){
+        //     console.log("was Player 1 ");
+        //     game.playerTurn=game.player2Address;
+        // }
+        // else{
+        //     console.log("was Player 2 ");
+        //     game.playerTurn=game.player1Address;
+        // }
+        
+
     })
     
      socket.on('loadFromPrivateKey', function (data) {
