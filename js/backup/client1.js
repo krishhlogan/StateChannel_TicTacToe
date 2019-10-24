@@ -1,15 +1,7 @@
-var socket = require('socket.io-client')('http://localhost:8000',{ transports: ['websocket']});
+var socket = require('socket.io-client')('http://localhost:8000',{ transports: ['websocket'] });
 // var socket = io({transports: ['websocket']});
 let client="";
-let gameAddress="";
-function isPlayer1(data){
-    if(data==game.player1Address){
-    return true;
-    }
-    else{
-        return false;
-    }
-}
+let gameAddress=""
 // let game={
 //     player1Address:"",
 //     player2Address:"",
@@ -24,16 +16,7 @@ function isPlayer1(data){
 //     player1Ready:false,
 //     player2Ready:false
 //     }
-var game={};
-function isYourTurn(data){
-    console.log(client,data);
-    if(client==data){
-        return true;
-    }
-    else{
-        return false;
-    }
-}
+
 function getInput(message){
     var input="";
     const readlineSync = require('readline-sync');
@@ -53,11 +36,9 @@ function printGameDetails(game){
     console.log("\nPlayer 2 Total Wins: ",game.player2TotalWins);
     if(client==game.player1Address){
         console.log("\n Your token balance: ",game.player1BalanceToken);
-        console.log("==========You are Player 1=======");
     }
     else if(client==game.player2Address){
         console.log("\n Your token balance: ",game.player2BalanceToken);
-        console.log("==========You are Player 2=======");
     }
 }
 
@@ -70,43 +51,6 @@ function printBoard(board) {
         ' ' + board[7] + ' | ' + board[8] + ' | ' + board[9] + '\n');
 }
 
-function makeAMove(data){
-    console.log("Got event ",client);
-    var move="";
-    game=data.game;
-    // console.log(data);
-    console.log(isYourTurn(data.turn),data.turn);
-    console.log(data.message);
-    if(isYourTurn(data.turn)){
-        console.log("your turn ");
-    printBoard(data.board);
-        while(true){
-        console.log("stuck in while ",move,data.board)
-        move=getInput("\nEnter the position you want to mark\n")
-        if(parseInt(move) in [1,2,3,4,5,6,7,8,9,10]){
-            if(data.board[move]==" "){
-                console.log("move before break ",move)
-                break;
-            }
-            else{
-                console.log("\n That position is already taken\nChoose a new One\n");
-            }
-        }
-        else{
-            console.log("\nPlease enter a valid position to mark \n")
-        }
-        }
-        if(move!=" "){
-            socket.emit("moveMade",{"move":move,"client":client});
-        }
-    }
-    else{
-        console.clear();
-        printBoard(data.board);
-        
-        console.log("Not your turn ");
-    }
-}
 
   socket.on('disconnect', function() {
       socket.emit('disconnect')
@@ -117,31 +61,23 @@ function makeAMove(data){
     console.log("choice is ",choice);
     if(choice=="1"){
         console.log("your account is ",client);
-        let tokens=getInput("\n Number of tokens you would want to use for the game\n");
+        let tokens=getInput("\n Number of tokens you would want to buy\n");
         let rounds=getInput("\nNumber of Rounds\n");
         let roundsBet={}
         count=0
-        while(true){
-        for(var i=1;i<=parseInt(rounds);i++){    
+        for(var i=1;i<=parseInt(rounds);i++){
+            
             let bet=getInput("\nEnter Bet amount for Round "+i+"\t")
             roundsBet["round"+i]=parseInt(bet);
             count+=parseInt(bet)
+            
         }
-        if(count<=parseInt(tokens)){
-            break;
-        }
-        else{
-            count=0;
-            console.log("\nYou dont have sufficient balance\n");
-        }
-    }
-        
         socket.emit('startNewGame',{"account":client,"rounds":rounds,"tokens":tokens,"roundsBet":roundsBet,"total":count});
     }
     else if(choice=="2"){
-        socket.emit("totalBet");
-        // console.log(game);
-      
+      let gameAddress=getInput("\n Enter Game Address you want to join\n");
+      let tokens=getInput("\n Enter the amount of tokens\n");
+      socket.emit('joinGame',{"gameAddress":gameAddress,"account":client,"tokens":tokens});
     }
     else if(choice=="3"){
         if(!client){
@@ -155,8 +91,7 @@ function makeAMove(data){
     else if(choice=="4"){
         if(!client){
         let privateKey=getInput("\nEnter your privatekey\n");
-        // let passphrase=getInput("\nEnter your password\n");
-        let passphrase="password";
+        let passphrase=getInput("\nEnter your password\n");
         if(passphrase && privateKey){
         socket.emit("loadFromPrivateKey",{"privateKey":privateKey,"passphrase":passphrase});
         }
@@ -181,25 +116,6 @@ function makeAMove(data){
   socket.on('connect', () => {
       askChoice();
   })
-
-  socket.on('bets',function(data){
-      console.log("Bets is triggered ",data);
-      game=data;
-      let gameAddress=getInput("\n Enter Game Address you want to join\n");
-      let tokens="";
-      console.log(game);
-      while(true){
-      tokens=getInput("\n Enter the amount of tokens\n");
-      console.log(game);
-      if(parseInt(tokens)<game.totalBet){
-          console.log("\n The bet tokens are not sufficient\n");
-      }
-      else{
-          break;
-      }
-      }
-      socket.emit('joinGame',{"gameAddress":gameAddress,"account":client,"tokens":tokens});
-  })
   
   socket.on('accountCreated',function(data){
       console.log("Your new Account is ",data.account);
@@ -222,12 +138,11 @@ function makeAMove(data){
 })
 
 socket.on('gameCreated',function(data){
-    game=data;
-    console.log("A new game is created ",game);
+    console.log("A new game is created ",data);
 })
 
 socket.on('gameRoomFull',function(data){
-    // console.clear()
+    console.clear()
     console.log("Game room is full\n",data);
     let readiness="";
     while(true){
@@ -241,42 +156,26 @@ socket.on('gameRoomFull',function(data){
         socket.emit("sendMsg",{"message":"player two not joined yet","client":client})
     }
     else{
-        console.log("\nPlease enter a valid choice \n");
+        console.log("\nPlease enter a valid choice \n")
     }
 }
 })
 socket.on("message",function(data){
-    console.log("\n\nMessage Received from ",data);
-    makeAMove(data);
-    // console.log("\n",data);
+    console.log("\n\nMessage Received from ",data.client);
+    console.log("\n",data.message);
 })
-socket.on('error', function(){
-    socket.socket.reconnect();
-  });
 socket.on("gameReady",function(data){
     console.clear();
     console.log("===============Game is Rady================\n");
     printGameDetails(data.game);
     printBoard(data.gameboard);
-    game=data.game;
-    console.log("Mark your position using any of the below position numbers\n")
-    console.log('\n' +
-        ' ' + 1 + ' | ' + 2 + ' | ' + 3 + '\n' +
-        ' ---------\n' +
-        ' ' + 4 + ' | ' + 5 + ' | ' + 6 + '\n' +
-        ' ---------\n' +
-        ' ' + 7 + ' | ' + 8 + ' | ' + 9 + '\n');
-    socket.emit("gameInitialised");
+    
 })
 socket.on('error',function(data){
     console.log("Error occured ",data);
     askChoice();
 })
 
-// socket.on('makeAMove',function(data){
-    // console.clear()
-    
-// })
 socket.on('insufficientBalance',function(data){
     console.log("\n",data.message);
 })
