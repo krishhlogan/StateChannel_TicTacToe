@@ -230,7 +230,6 @@ socket.on("gameReady",function(data){
 
 socket.on('makeAMove',function(data){
     console.clear();
-    console.log("Got event ",client);
     var move="";
     game=data.game;
     console.log(isYourTurn(data.turn),data.turn);
@@ -238,7 +237,6 @@ socket.on('makeAMove',function(data){
         console.log("your turn ");
     printBoard(data.board);
         while(true){
-        console.log("stuck in while ",move,data.board)
         move=getInput("\nEnter the position you want to mark\n")
         if(parseInt(move) in [1,2,3,4,5,6,7,8,9,10]){
             if(data.board[move]==" "){
@@ -268,7 +266,6 @@ socket.on('makeAMove',function(data){
     else{
         console.clear();
         printBoard(data.board);
-        
         console.log("Not your turn ");
     }
 })
