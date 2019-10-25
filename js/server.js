@@ -43,6 +43,15 @@ let game={
         };
     }
     
+    function isPlayer1(data){
+        if(data==game.player1Address){
+        return true;
+        }
+        else{
+            return false;
+        }
+    }
+    
 
 
 
@@ -167,7 +176,39 @@ io.on('connection', function(socket) {
 
     socket.on('gameInitialised',function(){
         console.log("\n Game is Initialised successfully");
-        io.sockets.in("Game_"+game.player1Address).emit('message',{"game":game,"board":gameBoard,"message":"\n\nFirst time\n\n","turn":game.playerTurn});
+        socket.broadcast.to("Game_"+game.player1Address).emit('makeAMove',{"game":game,"board":gameBoard,"message":"\n\nFirst time\n\n","turn":game.playerTurn});
+    })
+
+    socket.on('moveMade',function(data){
+        console.log("\n Sending a message from server on making a move \n")
+        console.log("\nMove Made by\n",game.playerTurn,"\n\n",data);
+        console.log(isPlayer1(data.client))
+        if(gameBoard[data.move]==" "){
+            if(isPlayer1(data.client)){
+                gameBoard[data.move]="X";
+                console.log("was Player 1 ");
+                game.playerTurn=game.player2Address;
+                socket.broadcast.to("Game_"+game.player1Address).emit('makeAMove',{"game":game,"board":gameBoard,"message":"\n\nData changed in game \n\n","turn":game.playerTurn});
+            }
+            else{
+                gameBoard[data.move]="O"
+                console.log("was Player 2 ");
+                game.playerTurn=game.player1Address;
+                socket.broadcast.to("Game_"+game.player1Address).emit('makeAMove',{"game":game,"board":gameBoard,"message":"\n\nData changed in game \n\n","turn":game.playerTurn});
+            }
+            console.log("=====================Game data inside if================ \n",game)
+            // socket.emit('makeAMove',{"game":game,"board":gameBoard,"message":"\n\nData changed in game \n\n","turn":game.playerTurn});
+            
+        }
+        else{
+            console.log("\Inside Else Invalid move");
+            // socket.emit('makeAMove',{"game":game,"board":gameBoard,"message":"\n\nNot changed\n\n","turn":game.playerTurn});
+            socket.broadcast.to("Game_"+game.player1Address).emit('makeAMove',{"game":game,"board":gameBoard,"message":"\n\nNot changed\n\n","turn":game.playerTurn});
+        }
+        
+       
+        
+
     })
     
 })

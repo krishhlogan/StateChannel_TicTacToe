@@ -1,25 +1,19 @@
-// var socket = require('socket.io-client')('http://localhost:8000',{ transports: ['websocket']});
-
-// function isPlayer1(data){
-//     if(data==game.player1Address){
-//     return true;
-//     }
-//     else{
-//         return false;
-//     }
-// }
-
-// socket.on('disconnect', function() {
-//     socket.emit('disconnect');
-// });
-
-// socket.on('connect', function() {
-//     socket.emit('connect');
-// })
 
 var socket = require('socket.io-client')('http://localhost:8000', {reconnect: true,transports: ['websocket']});
 let gameStarted=false;
 let client="";
+let game={};
+
+function isYourTurn(data){
+    console.log(client,data);
+    if(client==data){
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+
 function getInput(message){
     var input="";
     const readlineSync = require('readline-sync');
@@ -72,6 +66,36 @@ function loadPlayerDetails(){
             return null
         }
 }
+
+function printGameDetails(game){
+    console.clear()
+    console.log("\nPlayer 1 : ",game.player1Address);
+    console.log("\nPlayer 2 : ",game.player2Address);
+    console.log("\nTotal Number Of Rounds : ",game.totalRounds);
+    console.log("\nCurrent Round : ",game.currentRound);
+    console.log("\nGame Address ",game.gameAddress);
+    console.log("\nDraw Rounds: ",game.drawRounds);
+    console.log("\nPlayer 1 Total Wins: ",game.player1TotalWins);
+    console.log("\nPlayer 2 Total Wins: ",game.player2TotalWins);
+    if(client==game.player1Address){
+        console.log("\n Your token balance: ",game.player1BalanceToken);
+        console.log("==========You are Player 1=======");
+    }
+    else if(client==game.player2Address){
+        console.log("\n Your token balance: ",game.player2BalanceToken);
+        console.log("==========You are Player 2=======");
+    }
+}
+
+function printBoard(board) {
+    console.log('\n' +
+        ' ' + board[1] + ' | ' + board[2] + ' | ' + board[3] + '\n' +
+        ' ---------\n' +
+        ' ' + board[4] + ' | ' + board[5] + ' | ' + board[6] + '\n' +
+        ' ---------\n' +
+        ' ' + board[7] + ' | ' + board[8] + ' | ' + board[9] + '\n');
+}
+
 function askChoice(){
     console.log("ask choice is called\n")
     var choice=getInput("1)Start New Game\n2)Join New Game\n3)Create Player\n4)Load Player\n5)Change Account\n");
@@ -202,4 +226,49 @@ socket.on("gameReady",function(data){
         ' ---------\n' +
         ' ' + 7 + ' | ' + 8 + ' | ' + 9 + '\n');
     socket.emit("gameInitialised");
+})
+
+socket.on('makeAMove',function(data){
+    console.clear();
+    console.log("Got event ",client);
+    var move="";
+    game=data.game;
+    console.log(isYourTurn(data.turn),data.turn);
+    if(isYourTurn(data.turn)){
+        console.log("your turn ");
+    printBoard(data.board);
+        while(true){
+        console.log("stuck in while ",move,data.board)
+        move=getInput("\nEnter the position you want to mark\n")
+        if(parseInt(move) in [1,2,3,4,5,6,7,8,9,10]){
+            if(data.board[move]==" "){
+                break;
+            }
+            else{
+                console.log("\n That position is already taken\nChoose a new One\n");
+            }
+        }
+        else{
+            console.log("\nPlease enter a valid position to mark \n")
+        }
+        }
+        if(move!=" "){
+            if(game.player1Address==client){
+                data.board[move]="X";
+            }
+            else{
+                data.board[move]="O";
+            }
+            console.clear();
+            printBoard(data.board);
+            console.log("\n Not your turn");
+            socket.emit("moveMade",{"move":move,"client":client});
+        }
+    }
+    else{
+        console.clear();
+        printBoard(data.board);
+        
+        console.log("Not your turn ");
+    }
 })
