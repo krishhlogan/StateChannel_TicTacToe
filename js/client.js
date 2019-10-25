@@ -1,36 +1,70 @@
-var socket = require('socket.io-client')('http://localhost:8000',{ transports: ['websocket'] });
-// var socket = io({transports: ['websocket']});
+
+var socket = require('socket.io-client')('http://localhost:8000', {reconnect: true,transports: ['websocket']});
+let gameStarted=false;
 let client="";
-let gameAddress="";
-// let game={
-//     player1Address:"",
-//     player2Address:"",
-//     player1BalanceToken:0,
-//     player2BalanceToken:0,
-//     gameAddress:"",
-//     totalRounds:0,
-//     currentRound:0,
-//     player1TotalWins:0,
-//     player2TotalWins:0,
-//     drawRounds:0,
-//     player1Ready:false,
-//     player2Ready:false
-//     }
-var game={};
+let game={};
+
 function isYourTurn(data){
-    console.log(client,data.playerTurn,client==data.playerTurn);
-    if(client==data.playerTurn){
+    console.log(client,data);
+    if(client==data){
         return true;
     }
     else{
         return false;
     }
 }
+
 function getInput(message){
     var input="";
     const readlineSync = require('readline-sync');
     input = readlineSync.question(message);
     return input.toLowerCase();    
+}
+
+function newGameDetails(){
+    let tokens=getInput("\n Number of tokens you would want to use for the game\n");
+    let rounds=getInput("\nNumber of Rounds\n");
+    let roundsBet={}
+    count=0
+    while(true){
+    for(var i=1;i<=parseInt(rounds);i++){    
+        let bet=getInput("\nEnter Bet amount for Round "+i+"\t")
+        roundsBet["round"+i]=parseInt(bet);
+        count+=parseInt(bet)
+    }
+    if(count<=parseInt(tokens)){
+        break;
+    }
+    else{
+        count=0;
+        console.log("\nYou dont have sufficient balance\n");
+    }
+}
+return {"account":client,"rounds":rounds,"tokens":tokens,"roundsBet":roundsBet,"total":count};
+}
+
+
+function joinGameDetails(){
+    let gameAddress=getInput("\n Enter Game Address you want to join\n");
+    let tokens="";
+    tokens=getInput("\n Enter the amount of tokens\n");
+    return {"gameAddress":gameAddress,"account":client,"tokens":tokens}
+}
+
+function loadPlayerDetails(){
+    if(!client){
+        let privateKey=getInput("\nEnter your privatekey\n");
+        // let passphrase=getInput("\nEnter your password\n");
+        let passphrase="password";
+        if(passphrase && privateKey){
+        // socket.emit("loadFromPrivateKey",{"privateKey":privateKey,"passphrase":passphrase});
+        return {"privateKey":privateKey,"passphrase":passphrase};
+        }
+        
+        }
+        else{
+            return null
+        }
 }
 
 function printGameDetails(game){
@@ -62,111 +96,78 @@ function printBoard(board) {
         ' ' + board[7] + ' | ' + board[8] + ' | ' + board[9] + '\n');
 }
 
-
-  socket.on('disconnect', function() {
-      socket.emit('disconnect')
-  });
-  function askChoice(){
+function askChoice(){
     console.log("ask choice is called\n")
     var choice=getInput("1)Start New Game\n2)Join New Game\n3)Create Player\n4)Load Player\n5)Change Account\n");
     console.log("choice is ",choice);
-    if(choice=="1"){
-        console.log("your account is ",client);
-        let tokens=getInput("\n Number of tokens you would want to use for the game\n");
-        let rounds=getInput("\nNumber of Rounds\n");
-        let roundsBet={}
-        count=0
-        while(true){
-        for(var i=1;i<=parseInt(rounds);i++){    
-            let bet=getInput("\nEnter Bet amount for Round "+i+"\t")
-            roundsBet["round"+i]=parseInt(bet);
-            count+=parseInt(bet)
-        }
-        if(count<=parseInt(tokens)){
-            break;
-        }
-        else{
-            count=0;
-            console.log("\nYou dont have sufficient balance\n");
-        }
+    switch(choice){
+        case "1": 
+                console.log("\nStart new game choice");
+                data=newGameDetails();
+                socket.emit("createGame",data);
+                break;
+        case "2":
+                console.log("\nJoin New Game");
+                data=joinGameDetails();
+                socket.emit("joinGame",data);
+                break;
+        case "3":
+                console.log("\n Create New player");
+                if(!client){
+                    socket.emit("createPlayer");
+                }
+                else{
+                    console.log("\nYou already have an account\nPlease select some other choice");
+                    askChoice();
+                }
+                break;
+        case "4":
+                console.log("\n Load Player");
+                data=loadPlayerDetails();
+                if(data){
+                socket.emit("loadPlayer",data);
+                }
+                else{
+                console.log("\nYou already have an account\nPlease select some other choice");
+                }
+                break;
+        case "5":
+                console.clear();
+                console.log("\nPlayer Account is reset\n");
+                client="";
+                askChoice();
+                console.log("\nChange Account");
+        default:
+                console.clear();
+                console.log("\nkindly enter valid keys\n");
+                askChoice();
     }
-        
-        socket.emit('startNewGame',{"account":client,"rounds":rounds,"tokens":tokens,"roundsBet":roundsBet,"total":count});
-    }
-    else if(choice=="2"){
-        socket.emit("totalBet");
-        // console.log(game);
-      
-    }
-    else if(choice=="3"){
-        if(!client){
-        socket.emit('createPlayerAccount');
-        }
-        else{
-            console.log("\nYou already have an account\nPlease select some other choice");
-            askChoice();
-        }
-    }
-    else if(choice=="4"){
-        if(!client){
-        let privateKey=getInput("\nEnter your privatekey\n");
-        // let passphrase=getInput("\nEnter your password\n");
-        let passphrase="password";
-        if(passphrase && privateKey){
-        socket.emit("loadFromPrivateKey",{"privateKey":privateKey,"passphrase":passphrase});
-        }
-        
-        }
-        else{
-            console.log("\nYou already have an account\nPlease select some other choice");
-            askChoice();
-        }
-    }
-    else if(choice=="5"){
-        console.log("\nPlayer Account is reset\n");
-        client="";
-        askChoice();
-    }
-        else{
-            console.log("\nkindly enter valid keys\n");
-            askChoice();
-        }
-    }
-  
-  socket.on('connect', () => {
-      askChoice();
-  })
 
-  socket.on('bets',function(data){
-      console.log("Bets is triggered ",data);
-      game=data;
-      let gameAddress=getInput("\n Enter Game Address you want to join\n");
-      let tokens="";
-      console.log(game);
-      while(true){
-      tokens=getInput("\n Enter the amount of tokens\n");
-      console.log(game);
-      if(parseInt(tokens)<game.totalBet){
-          console.log("\n The bet tokens are not sufficient\n");
-      }
-      else{
-          break;
-      }
-      }
-      socket.emit('joinGame',{"gameAddress":gameAddress,"account":client,"tokens":tokens});
-  })
-  
-  socket.on('accountCreated',function(data){
-      console.log("Your new Account is ",data.account);
+}
+socket.on('connect', function (socket) {
+    console.log('Connected!');
+    if(!gameStarted){
+    askChoice();
+    }
+});
+
+socket.on('disconnect', function() {
+    socket.emit('disconnect');
+});
+
+socket.on('accountCreated',function(data){
+    console.clear();
+    console.log("Your new Account is ",data.account);
       let choice=getInput("\nDo you want to use this as your account?\t Yes or No\t")
       if(choice.toLocaleLowerCase()=="yes"){
           console.log("\nThe account "+data.account+" will be used as your account \n");
           client=data.account;
       }
       askChoice();
-  })
+})
 
-  socket.on('accountLoaded',function(data){
+socket.on('accountLoaded',function(data){
+    console.clear();
     console.log("Your loaded Account is ",data.account);
     let choice=getInput("\nDo you want to use this as your account?\t Yes or No\t")
     if(choice.toLocaleLowerCase()=="yes"){
@@ -179,6 +180,16 @@ function printBoard(board) {
 socket.on('gameCreated',function(data){
     game=data;
     console.log("A new game is created ",game);
+    console.log("\n Waiting for other player to join the game......")
+})
+
+socket.on('insufficientBalance',function(data){
+    console.clear();
+    console.log("\n",data.message);
+    console.log("\nGame Address: ",data.gameAddress);
+    console.log("\n Required Tokens ",data.tokens);
+    console.log("\n Kindly join the game again with sufficient tokens \n");
+    askChoice();
 })
 
 socket.on('gameRoomFull',function(data){
@@ -200,10 +211,6 @@ socket.on('gameRoomFull',function(data){
     }
 }
 })
-socket.on("message",function(data){
-    console.log("\n\nMessage Received from ",data);
-    console.log("\n",data);
-})
 
 socket.on("gameReady",function(data){
     console.clear();
@@ -220,16 +227,12 @@ socket.on("gameReady",function(data){
         ' ' + 7 + ' | ' + 8 + ' | ' + 9 + '\n');
     socket.emit("gameInitialised");
 })
-socket.on('error',function(data){
-    console.log("Error occured ",data);
-    askChoice();
-})
 
 socket.on('makeAMove',function(data){
+    console.clear();
     var move="";
     game=data.game;
     console.log(isYourTurn(data.turn),data.turn);
-    console.log(data.message);
     if(isYourTurn(data.turn)){
         console.log("your turn ");
     printBoard(data.board);
@@ -237,7 +240,6 @@ socket.on('makeAMove',function(data){
         move=getInput("\nEnter the position you want to mark\n")
         if(parseInt(move) in [1,2,3,4,5,6,7,8,9,10]){
             if(data.board[move]==" "){
-                socket.emit("moveMade",{"move":move,"client":client});
                 break;
             }
             else{
@@ -247,14 +249,23 @@ socket.on('makeAMove',function(data){
         else{
             console.log("\nPlease enter a valid position to mark \n")
         }
-    }
+        }
+        if(move!=" "){
+            if(game.player1Address==client){
+                data.board[move]="X";
+            }
+            else{
+                data.board[move]="O";
+            }
+            console.clear();
+            printBoard(data.board);
+            console.log("\n Not your turn");
+            socket.emit("moveMade",{"move":move,"client":client});
+        }
     }
     else{
+        console.clear();
+        printBoard(data.board);
         console.log("Not your turn ");
     }
-    
 })
-socket.on('insufficientBalance',function(data){
-    console.log("\n",data.message);
-})
-  
