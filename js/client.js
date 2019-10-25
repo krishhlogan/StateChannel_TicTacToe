@@ -269,3 +269,13 @@ socket.on('makeAMove',function(data){
         console.log("Not your turn ");
     }
 })
+
+socket.on('roundOver',function(data){
+    console.clear();
+    console.log("\n Round Over ",data);
+})
+
+socket.on('gameOver',function(data){
+    console.clear();
+    console.log("\n Game is over ",data);
+})
