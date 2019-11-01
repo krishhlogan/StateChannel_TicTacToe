@@ -4,7 +4,13 @@ const io=require('socket.io')(http)
 io.set('transports', ['websocket']);
 const Web3= require('web3');
 const port=8000
+const WON="won"
+const DRAW="draw"
+const CONTINUE="continue"
+const winCombinations = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [1, 4, 7],
+[2, 5, 8], [3, 6, 9], [1, 5, 9], [3, 5, 7]];
 
+let marks={};
 let game={
     player1Address:"",
     player2Address:"",
@@ -12,7 +18,7 @@ let game={
     player2BalanceToken:0,
     gameAddress:"",
     totalRounds:0,
-    currentRound:0,
+    completedRounds:0,
     player1TotalWins:0,
     player2TotalWins:0,
     drawRounds:0,
@@ -21,7 +27,11 @@ let game={
     move:0,
     roundsBet:{},
     totalBet:0,
-    playerTurn:""
+    playerTurn:"",
+    roundOver:false,
+    gameOver:false,
+    player1SocketAddress:'',
+    player2SocketAddress:'',
     }
     
     let gameBoard;
@@ -51,7 +61,85 @@ let game={
             return false;
         }
     }
+
+    function checkWin(player) {
+        var i, j, markCount;
+        for (i = 0; i < winCombinations.length; i++) {
+            markCount = 0;
+            for (j = 0; j < winCombinations[i].length; j++) {
+                if (gameBoard[winCombinations[i][j]] === marks[player]) {
+                    markCount++;
+                }
+                if (markCount === 3) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    function checkTie() {
+        for (var i = 1; i <= Object.keys(gameBoard).length; i++) {
+            if (gameBoard[i] === ' ') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+function getWinner(){
+    if(game.completedRounds==game.totalRounds){
+        if(game.player1TotalWins > game.player2TotalWins){
+            return game.player1Address;
+            // io.sockets.in('Game_'+game.player1Address).emit("gameOver",{"message":"player 1 has won"});      
+        }
+        else if(game.player1TotalWins < game.player2TotalWins){
+            // io.sockets.in('Game_'+game.player1Address).emit("gameOver",{"message":"player 2 has won"});
+            return game.player2Address;
+        }
+        else{
+            // io.sockets.in('Game_'+game.player1Address).emit("gameOver",{"message":"The game has tied"});
+            return null;
+        }
+    }
+    else{
+        return " ";
+    }
+}
     
+function gameEnded(){
+    if(game.completedRounds==game.totalRounds){
+        return true;
+    }
+    else{
+        return false;
+    }
+
+}
+
+function validateBoard(data){
+        if(checkTie()){
+            game.drawRounds+=1;
+            game.completedRounds+=1;
+            return {"result":DRAW,"winner":" "};
+        }
+        else if(checkWin(data.client)){
+            if(isPlayer1(data.client)){
+                game.player1TotalWins+=1;
+                game.completedRounds+=1;
+                return {"result":WON,"winner":game.player1Address};
+            }
+            else{
+                game.player2TotalWins+=1;
+                game.completedRounds+=1;
+                return {"result":WON,"winner":game.player2Address};
+            }
+                       
+        }
+        else{
+            return {"result":CONTINUE};
+        }
+}
 
 
 
@@ -63,17 +151,14 @@ io.on('connection', function(socket) {
     socket.on('disconnect', function () {
     console.log('A user disconnected');
     
-    });
+    })
 
     socket.on("createPlayer",function(){
         console.log("createPlayer event\n");
         let conn=createConnection();
         let account=conn.personal.newAccount();
         socket.emit("accountCreated",{"account":account});
-     },function(err){
-        console.log("error occured try again",err);
-        socket.emit("error",{"error":"error creating new account"});
-    })
+     })
 
     socket.on('loadPlayer',function(data){
         console.log("Load player event\n");
@@ -82,10 +167,7 @@ io.on('connection', function(socket) {
         let account=conn.personal.importRawKey(data.privateKey,data.passphrase);
         console.log("\n Loaded player Account from private Key ",account);
         socket.emit("accountLoaded",{"account":account});
-     },function(err){
-        console.log("error occured try again",err);
-        socket.emit("error",{"error":"error loading account"});
-    });
+     })
 
     socket.on('createGame',function(data){
         console.log('Start-a-new-Game event',data.account);
@@ -110,6 +192,8 @@ io.on('connection', function(socket) {
                 game.roundsBet=data.roundsBet;
                 game.player1BalanceToken=parseInt(data.tokens);
                 game.totalBet=parseInt(data.total);
+                game.player1SocketAddress=socket.id;
+                marks[game.player1Address]="X";
                 socket.join("Game_"+data.account);
                 // socket.emit("gameCreated",game);
                 // console.log(io.sockets.sockets);
@@ -146,6 +230,8 @@ io.on('connection', function(socket) {
                                     game.player2BalanceToken=parseInt(data.tokens);
                                     socket.join("Game_"+game.player1Address);
                                     game.playerTurn=game.player1Address;
+                                    game.player2SocketAddress=socket.id;
+                                    marks[game.player2Address]="O";
                                     io.sockets.in("Game_"+game.player1Address).emit('gameRoomFull',game);
                                     // console.log(io.sockets.adapter.rooms) //Returns {room_1_id: {}, room_2_id: {}}
                                     // console.log(io.sockets.server.eio.clients)
@@ -183,6 +269,8 @@ io.on('connection', function(socket) {
         console.log("\n Sending a message from server on making a move \n")
         console.log("\nMove Made by\n",game.playerTurn,"\n\n",data);
         console.log(isPlayer1(data.client))
+        // if(!checkWin(data.client)){
+        
         if(gameBoard[data.move]==" "){
             if(isPlayer1(data.client)){
                 gameBoard[data.move]="X";
@@ -205,10 +293,40 @@ io.on('connection', function(socket) {
             // socket.emit('makeAMove',{"game":game,"board":gameBoard,"message":"\n\nNot changed\n\n","turn":game.playerTurn});
             socket.broadcast.to("Game_"+game.player1Address).emit('makeAMove',{"game":game,"board":gameBoard,"message":"\n\nNot changed\n\n","turn":game.playerTurn});
         }
-        
-       
-        
+     
+        let result=validateBoard(data);
+        switch(result.result){
+            case WON:
+                console.log("\n Game has a result ");
+                console.log(getWinner());
+                gameState=gameEnded();
+                if(gameState){
+                    winner=getWinner();
+                
+                }
+                
+                
+                break;
+            case DRAW:
+                console.log("\nGame has ended in a draw");
+                
+                break;
+            case CONTINUE:
+                console.log("\n Game is not over continue");
+            default:
+                console.log("\n Never gonna happen ;) ");
+        }
+    
+    })
 
+    socket.on('nextRound',function(){
+        initializeGameBoard();
+        game.playerTurn=game.player1Address;
+        game.roundOver=false;
+        game.gameOver=false;
+        game.player1Ready=false
+        game.player2Ready=false
+        io.sockets.in("Game_"+game.player1Address).emit('gameRoomFull',{"game":game,"gameboard":gameBoard,"turn":game.playerTurn});
     })
     
 })
