@@ -144,8 +144,8 @@ function askChoice(){
     }
 
 }
-socket.on('connect', function (socket) {
-    console.log('Connected!');
+socket.on('connect', function () {
+    console.log("connected ",socket.id)
     if(!gameStarted){
     askChoice();
     }
@@ -233,6 +233,7 @@ socket.on('makeAMove',function(data){
     var move="";
     game=data.game;
     console.log(isYourTurn(data.turn),data.turn);
+    if (!(game.roundOver || game.gameOver)){
     if(isYourTurn(data.turn)){
         console.log("your turn ");
     printBoard(data.board);
@@ -268,14 +269,9 @@ socket.on('makeAMove',function(data){
         printBoard(data.board);
         console.log("Not your turn ");
     }
+}
+else{
+    console.log("\n Game or round is  over");
+}
 })
 
-socket.on('roundOver',function(data){
-    console.clear();
-    console.log("\n Round Over ",data);
-})
-
-socket.on('gameOver',function(data){
-    console.clear();
-    console.log("\n Game is over ",data);
-})

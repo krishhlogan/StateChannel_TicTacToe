@@ -27,7 +27,11 @@ let game={
     move:0,
     roundsBet:{},
     totalBet:0,
-    playerTurn:""
+    playerTurn:"",
+    roundOver:false,
+    gameOver:false,
+    player1SocketAddress:'',
+    player2SocketAddress:'',
     }
     
     let gameBoard;
@@ -103,10 +107,21 @@ function getWinner(){
     }
 }
     
+function gameEnded(){
+    if(game.completedRounds==game.totalRounds){
+        return true;
+    }
+    else{
+        return false;
+    }
+
+}
+
 function validateBoard(data){
         if(checkTie()){
             game.drawRounds+=1;
-            return {"result":DRAW};
+            game.completedRounds+=1;
+            return {"result":DRAW,"winner":" "};
         }
         else if(checkWin(data.client)){
             if(isPlayer1(data.client)){
@@ -177,6 +192,7 @@ io.on('connection', function(socket) {
                 game.roundsBet=data.roundsBet;
                 game.player1BalanceToken=parseInt(data.tokens);
                 game.totalBet=parseInt(data.total);
+                game.player1SocketAddress=socket.id;
                 marks[game.player1Address]="X";
                 socket.join("Game_"+data.account);
                 // socket.emit("gameCreated",game);
@@ -214,6 +230,7 @@ io.on('connection', function(socket) {
                                     game.player2BalanceToken=parseInt(data.tokens);
                                     socket.join("Game_"+game.player1Address);
                                     game.playerTurn=game.player1Address;
+                                    game.player2SocketAddress=socket.id;
                                     marks[game.player2Address]="O";
                                     io.sockets.in("Game_"+game.player1Address).emit('gameRoomFull',game);
                                     // console.log(io.sockets.adapter.rooms) //Returns {room_1_id: {}, room_2_id: {}}
@@ -253,6 +270,7 @@ io.on('connection', function(socket) {
         console.log("\nMove Made by\n",game.playerTurn,"\n\n",data);
         console.log(isPlayer1(data.client))
         // if(!checkWin(data.client)){
+        
         if(gameBoard[data.move]==" "){
             if(isPlayer1(data.client)){
                 gameBoard[data.move]="X";
@@ -281,33 +299,34 @@ io.on('connection', function(socket) {
             case WON:
                 console.log("\n Game has a result ");
                 console.log(getWinner());
-                winner=getWinner();
-                if(winner && winner!=" "){
-                    if(isPlayer1(winner)){
-                        io.sockets.in('Game_'+game.player1Address).emit("gameOver",{"message":"player 1 has won","winner":winner});     
-                    }
-                    else{
-                        io.sockets.in('Game_'+game.player1Address).emit("gameOver",{"message":"player 1 has won"});     v 
-                    }
+                gameState=gameEnded();
+                if(gameState){
+                    winner=getWinner();
+                
                 }
-                else if(winner==" "){
-                    io.sockets.in('Game_'+game.player1Address).emit("roundOver",{"message":"player "+ result.winner +" has won the round "+game.completedRounds,"winner":result.winner});     
-                }
-                else{
-                    io.sockets.in('Game_'+game.player1Address).emit("gameOver",{"message":"Draw Game ","winner":" "});     
-                }
+                
+                
                 break;
             case DRAW:
                 console.log("\nGame has ended in a draw");
-
+                
                 break;
             case CONTINUE:
                 console.log("\n Game is not over continue");
-                console.log(getWinner());
             default:
                 console.log("\n Never gonna happen ;) ");
         }
     
+    })
+
+    socket.on('nextRound',function(){
+        initializeGameBoard();
+        game.playerTurn=game.player1Address;
+        game.roundOver=false;
+        game.gameOver=false;
+        game.player1Ready=false
+        game.player2Ready=false
+        io.sockets.in("Game_"+game.player1Address).emit('gameRoomFull',{"game":game,"gameboard":gameBoard,"turn":game.playerTurn});
     })
     
 })
